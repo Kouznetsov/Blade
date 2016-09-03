@@ -94,7 +94,7 @@ ext.deps = [
         javax_annotations  : 'org.glassfish:javax.annotation:10.0-b28',
 
         // Square
-        javapoet           : 'com.squareup:javapoet:1.4.0',
+        javapoet           : 'com.squareup:javapoet:1.7.0',
 
         // Test dependencies
         junit              : 'junit:junit:4.12',
