@@ -26,6 +26,30 @@ public class PresenterManager {
         forParentActivity(view).removeFor(view);
     }
 
+    /**
+     * Removes presenters for given fragment.
+     * <p>
+     * <b>NOTE:</b> TODO
+     * </p>
+     */
+    public static void removePresentersFor(android.app.Fragment fragment) {
+        if (fragment == null) throw new IllegalArgumentException("'fragment' cannot be null.");
+
+        // TODO
+    }
+
+    /**
+     * Removes presenters for given fragment.
+     * <p>
+     * <b>NOTE:</b> TODO
+     * </p>
+     */
+    public static void removePresentersFor(android.support.v4.app.Fragment fragment) {
+        if (fragment == null) throw new IllegalArgumentException("'fragment' cannot be null.");
+
+        // TODO
+    }
+
     //endregion API
 
     //region INTERNAL

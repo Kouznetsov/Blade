@@ -8,5 +8,6 @@ dependencies {
 
     compile project(':core')
 
-    compile deps.google_android
+    compileOnly deps.google_android
+    compileOnly deps.google_support_v4
 }
