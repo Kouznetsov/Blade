@@ -11,20 +11,52 @@ import java.util.UUID;
 import eu.f3rog.blade.mvp.MvpActivity;
 
 /**
- * Class {@link PresenterManager}
- *
- * @author FrantisekGazo
- * @version 2016-02-12
+ * Manages all presenters inside an App.
  */
 public class PresenterManager {
 
+    //region API
+
     /**
-     * Used internally by Blade library.
+     * Removes presenters for given view.
+     */
+    public static void removePresentersFor(View view) {
+        if (view == null) throw new IllegalArgumentException("'view' cannot be null.");
+
+        forParentActivity(view).removeFor(view);
+    }
+
+    //endregion API
+
+    //region INTERNAL
+
+    /**
+     * Removes presenters for given activity.
+     * <p>
+     * <b>NOTE:</b> Used internally by Blade library.
+     * </p>
+     */
+    public static void removePresentersFor(Activity activity) {
+        if (activity == null) throw new IllegalArgumentException("'activity' cannot be null.");
+
+        if (!activity.isFinishing()) {
+            return;
+        }
+
+        Object activityKey = buildActivityKey(activity);
+        getInstance().removeActivityPresenters(activityKey);
+    }
+
+    /**
+     * Stores given presenter for given view with given data.
+     * <p>
+     * <b>NOTE:</b> Used internally by Blade library.
+     * </p>
      */
     public static <V extends IView, D> void put(V view, D data, IPresenter<V, D> presenter) {
-        assert view != null;
-        assert data != null;
-        assert presenter != null;
+        if (view == null) throw new IllegalArgumentException("'view' cannot be null.");
+        if (data == null) throw new IllegalArgumentException("'data' cannot be null.");
+        if (presenter == null) throw new IllegalArgumentException("'presenter' cannot be null.");
 
         if (view instanceof View) {
             View v = (View) view;
@@ -38,12 +70,16 @@ public class PresenterManager {
     }
 
     /**
-     * Used internally by Blade library.
+     * Retrieves presenter of given class for given view with given data.
+     * <p>
+     * <b>NOTE:</b> Used internally by Blade library.
+     * </p>
      */
     public static <V extends IView, D> IPresenter get(V view, D data, Class presenterClass) {
-        assert view != null;
-        assert data != null;
-        assert presenterClass != null;
+        if (view == null) throw new IllegalArgumentException("'view' cannot be null.");
+        if (data == null) throw new IllegalArgumentException("'data' cannot be null.");
+        if (presenterClass == null)
+            throw new IllegalArgumentException("'presenter class' cannot be null.");
 
         if (view instanceof View) {
             View v = (View) view;
@@ -56,32 +92,27 @@ public class PresenterManager {
         }
     }
 
-    public static void removePresentersFor(View view) {
-        assert view != null;
-
-        forParentActivity(view).removeFor(view);
-    }
-
-    public static void removePresentersFor(Activity activity) {
-        assert activity != null;
-
-        if (!activity.isFinishing()) {
-            return;
-        }
-
-        Object activityId = buildActivityId(activity);
-        getInstance().removeActivityPresenters(activityId);
-    }
-
+    /**
+     * Saves state of all presenters used in given activity into a state.
+     * <p>
+     * <b>NOTE:</b> Used internally by Blade library.
+     * </p>
+     */
     public static void savePresentersFor(Activity activity, Bundle state) {
-        assert activity != null;
-        assert state != null;
+        if (activity == null) throw new IllegalArgumentException("'activity' cannot be null.");
+        if (state == null) throw new IllegalArgumentException("'state' cannot be null.");
 
         forActivity(activity).saveInto(state);
     }
 
+    /**
+     * Restores state of all presenters used in given activity from a state.
+     * <p>
+     * <b>NOTE:</b> Used internally by Blade library.
+     * </p>
+     */
     public static void restorePresentersFor(Activity activity, Bundle state) {
-        assert activity != null;
+        if (activity == null) throw new IllegalArgumentException("'activity' cannot be null.");
 
         if (state == null) {
             return;
@@ -90,38 +121,29 @@ public class PresenterManager {
         forActivity(activity).restoreFrom(state);
     }
 
+    /**
+     * Retrieves activity ID from a state.
+     * <p>
+     * <b>NOTE:</b> Used internally by Blade library.
+     * </p>
+     */
     public static String getActivityId(Bundle state) {
         return (state != null) ? state.getString("blade:activity_id") : UUID.randomUUID().toString();
     }
 
+    /**
+     * Stores activity ID to a state.
+     * <p>
+     * <b>NOTE:</b> Used internally by Blade library.
+     * </p>
+     */
     public static void putActivityId(Bundle state, String activityId) {
         state.putString("blade:activity_id", activityId);
     }
 
-    // ------------------------------------------------------------------------------------
+    //endregion INTERNAL
 
-    private static ActivityPresenterManager forParentActivity(View view) {
-        assert view != null;
-
-        return forActivity((Activity) view.getContext());
-    }
-
-    private static ActivityPresenterManager forActivity(Activity activity) {
-        assert activity != null;
-
-        Object activityId = buildActivityId(activity);
-        return getInstance().getActivityPresenters(activityId);
-    }
-
-    private static Object buildActivityId(Activity activity) {
-        if (activity instanceof MvpActivity) {
-            MvpActivity a = (MvpActivity) activity;
-            return String.format("%s:%s", activity.getClass().getCanonicalName(), a.getId());
-        } else {
-            throw new IllegalStateException("Activity is missing @Blade annotation.");
-        }
-    }
-
+    //region PRIVATE
 
     private static PresenterManager sInstance;
 
@@ -132,53 +154,83 @@ public class PresenterManager {
         return sInstance;
     }
 
-    private final Map<Object, ActivityPresenterManager> mActivityPresenters;
+    /**
+     * Returns presenter manager for parent activity of given view.
+     */
+    private static ActivityPresenterManager forParentActivity(View view) {
+        return forActivity((Activity) view.getContext());
+    }
+
+    /**
+     * Returns presenter manager for given activity.
+     */
+    private static ActivityPresenterManager forActivity(Activity activity) {
+        Object activityKey = buildActivityKey(activity);
+        return getInstance().getActivityPresenterManager(activityKey);
+    }
+
+    /**
+     * Builds key for given activity. This key must ne unique for each instance.
+     */
+    private static Object buildActivityKey(Activity activity) {
+        if (activity instanceof MvpActivity) {
+            MvpActivity a = (MvpActivity) activity;
+            return String.format("%s:%s", activity.getClass().getCanonicalName(), a.getId());
+        } else {
+            throw new IllegalStateException("Activity is missing @Blade annotation.");
+        }
+    }
+
+    private final Map<Object, ActivityPresenterManager> mActivityPresenterManagers;
 
     private PresenterManager() {
-        mActivityPresenters = new HashMap<>();
+        mActivityPresenterManagers = new HashMap<>();
     }
 
-    private ActivityPresenterManager getActivityPresenters(Object activityId) {
-        assert activityId != null;
-
-        if (!mActivityPresenters.containsKey(activityId)) {
-            mActivityPresenters.put(activityId, new ActivityPresenterManager());
+    /**
+     * Returns presenter manager for given key.
+     */
+    private ActivityPresenterManager getActivityPresenterManager(Object activityKey) {
+        if (!mActivityPresenterManagers.containsKey(activityKey)) {
+            mActivityPresenterManagers.put(activityKey, new ActivityPresenterManager());
         }
 
-        return mActivityPresenters.get(activityId);
+        return mActivityPresenterManagers.get(activityKey);
     }
 
-    private void removeActivityPresenters(Object activityId) {
-        ActivityPresenterManager apm = mActivityPresenters.remove(activityId);
-        if (apm != null) {
-            apm.removeAll();
+    /**
+     * Removes presenter manager with all contained presenters for given key.
+     */
+    private void removeActivityPresenters(Object activityKey) {
+        ActivityPresenterManager manager = mActivityPresenterManagers.remove(activityKey);
+        if (manager != null) {
+            manager.removeAll();
         }
     }
 
-    private static class ActivityPresenterManager {
+    /**
+     * Manages all presenters inside an Activity.
+     */
+    private static final class ActivityPresenterManager {
 
         private final Map<Class, IPresenter> mActivityPresenters;
         private final Map<String, Map<Class, IPresenter>> mViewPresenters;
         private Bundle mState;
 
-        private ActivityPresenterManager() {
+        ActivityPresenterManager() {
             mActivityPresenters = new HashMap<>();
             mViewPresenters = new HashMap<>();
             mState = null;
         }
 
         public <V extends IView, D> void put(View view, D data, IPresenter<V, D> presenter) {
-            assert view != null;
-            assert data != null;
-            assert presenter != null;
-
-            String viewId = buildViewId(view, data);
-            putViewPresenter(viewId, presenter);
+            String viewKey = buildViewKey(view, data);
+            putViewPresenter(viewKey, presenter);
 
             boolean restored = false;
 
             if (mState != null) {
-                Bundle viewPresentersState = mState.getBundle(viewId);
+                Bundle viewPresentersState = mState.getBundle(viewKey);
                 if (viewPresentersState != null) {
                     String key = presenter.getClass().getCanonicalName();
                     Bundle presenterState = viewPresentersState.getBundle(key);
@@ -193,9 +245,6 @@ public class PresenterManager {
         }
 
         public <V extends IView, D> void put(D data, IPresenter<V, D> presenter) {
-            assert data != null;
-            assert presenter != null;
-
             putActivityPresenter(presenter);
 
             boolean restored = false;
@@ -213,30 +262,22 @@ public class PresenterManager {
         }
 
         public <D> IPresenter get(View view, D data, Class presenterClass) {
-            assert view != null;
-            assert data != null;
-            assert presenterClass != null;
-
-            String viewId = buildViewId(view, data);
-            return getViewPresenter(viewId, presenterClass);
+            String viewKey = buildViewKey(view, data);
+            return getViewPresenter(viewKey, presenterClass);
         }
 
         public <D> IPresenter get(D data, Class presenterClass) {
-            assert data != null;
-            assert presenterClass != null;
-
             return getActivityPresenter(presenterClass);
         }
 
         public void removeFor(View view) {
-            assert view != null;
-
-            if (view.getTag() == null) {
+            Object data = view.getTag();
+            if (data == null) {
                 return;
             }
 
-            String viewId = buildViewId(view, view.getTag());
-            Map<Class, IPresenter> presenters = mViewPresenters.get(viewId);
+            String viewKey = buildViewKey(view, data);
+            Map<Class, IPresenter> presenters = mViewPresenters.get(viewKey);
             if (presenters == null) {
                 return;
             }
@@ -245,7 +286,7 @@ public class PresenterManager {
                 presenter.destroy();
             }
             presenters.clear();
-            mViewPresenters.remove(viewId);
+            mViewPresenters.remove(viewKey);
         }
 
         public void removeAll() {
@@ -271,13 +312,13 @@ public class PresenterManager {
 
             // save view presenters
             for (Map.Entry<String, Map<Class, IPresenter>> viewEntry : mViewPresenters.entrySet()) {
-                String viewId = viewEntry.getKey();
+                String viewKey = viewEntry.getKey();
                 Map<Class, IPresenter> viewPresenters = viewEntry.getValue();
                 Bundle viewPresentersState = new Bundle();
 
                 save(viewPresenters, viewPresentersState);
 
-                state.putBundle(viewId, viewPresentersState);
+                state.putBundle(viewKey, viewPresentersState);
             }
 
             mState = state;
@@ -299,18 +340,18 @@ public class PresenterManager {
             mState = state;
         }
 
-        private void putViewPresenter(String viewId, IPresenter presenter) {
-            Map<Class, IPresenter> viewPresenters = mViewPresenters.get(viewId);
+        private void putViewPresenter(String viewKey, IPresenter presenter) {
+            Map<Class, IPresenter> viewPresenters = mViewPresenters.get(viewKey);
             if (viewPresenters == null) {
                 viewPresenters = new HashMap<>();
-                mViewPresenters.put(viewId, viewPresenters);
+                mViewPresenters.put(viewKey, viewPresenters);
             }
 
             viewPresenters.put(presenter.getClass(), presenter);
         }
 
-        private IPresenter getViewPresenter(String viewId, Class presenterClass) {
-            Map<Class, IPresenter> viewPresenters = mViewPresenters.get(viewId);
+        private IPresenter getViewPresenter(String viewKey, Class presenterClass) {
+            Map<Class, IPresenter> viewPresenters = mViewPresenters.get(viewKey);
             if (viewPresenters == null) {
                 return null;
             }
@@ -326,10 +367,10 @@ public class PresenterManager {
             return mActivityPresenters.get(presenterClass);
         }
 
-        private String buildViewId(View view, Object tagObject) {
+        private String buildViewKey(View view, Object tagObject) {
             return String.format("%s:%s", view.getClass().getCanonicalName(), tagObject.toString());
         }
-
     }
 
+    //endregion PRIVATE
 }

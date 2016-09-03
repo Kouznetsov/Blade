@@ -2,9 +2,6 @@ package blade.mvp;
 
 /**
  * Class {@link BasePresenter}
- *
- * @author FrantisekGazo
- * @version 2016-02-14
  */
 public abstract class BasePresenter<V extends IView, D>
         implements IPresenter<V, D> {
